@@ -9,15 +9,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use App\Services\WhatsAppService;
 
 class CheckoutController extends Controller
 {
+    protected WhatsAppService $whatsAppService;
+
     public function __construct()
     {
         \Midtrans\Config::$serverKey = env('MIDTRANS_SERVER_KEY');
         \Midtrans\Config::$isProduction = false;
         \Midtrans\Config::$isSanitized = true;
         \Midtrans\Config::$is3ds = true;
+        $this->whatsAppService = new WhatsAppService();
     }
 
     public function create(Event $event)
@@ -57,7 +61,8 @@ class CheckoutController extends Controller
 
         $orderId = 'TRX-' . time() . '-' . strtoupper(Str::random(5));
 
-        $totalPrice = $event->price + 5000;
+        $isFreeEvent = (int) $event->price === 0;
+        $totalPrice = $isFreeEvent ? 0 : $event->price + 5000;
 
         $transaction = Transaction::create([
             'event_id'       => $event->id,
@@ -68,6 +73,25 @@ class CheckoutController extends Controller
             'total_price'    => $totalPrice,
             'status'         => 'pending',
         ]);
+
+        if ($isFreeEvent) {
+            $transaction->update(['status' => 'success']);
+
+            if ($event->stock > 0) {
+                $event->decrement('stock');
+            }
+
+            try {
+                Mail::to($transaction->customer_email)
+                    ->send(new \App\Mail\EventTicketMail($transaction));
+
+                $this->sendSuccessWhatsApp($transaction);
+            } catch (\Exception $e) {
+                Log::error('Gagal mengirim e-ticket gratis: ' . $e->getMessage());
+            }
+
+            return redirect()->route('checkout.success', ['order_id' => $orderId]);
+        }
 
         $successUrl = route('checkout.success', [
             'order_id' => $orderId
@@ -100,6 +124,8 @@ class CheckoutController extends Controller
                 'snap_token' => $snapToken,
             ]);
 
+            $this->sendPendingWhatsApp($transaction, $request->customer_phone);
+
             return redirect()->route(
                 'checkout.payment',
                 $transaction->order_id
@@ -114,6 +140,31 @@ class CheckoutController extends Controller
                 'Gagal memproses pembayaran: ' . $e->getMessage()
             );
         }
+    }
+
+    protected function sendPendingWhatsApp(Transaction $transaction, string $phone): void
+    {
+        if (empty($phone)) {
+            return;
+        }
+
+        $paymentUrl = route('checkout.payment', $transaction->order_id, true);
+        $message = "Halo {$transaction->customer_name}, transaksi Anda sedang menunggu pembayaran. Silakan selesaikan pembayaran di: {$paymentUrl}";
+
+        $this->whatsAppService->send($phone, $message);
+    }
+
+    protected function sendSuccessWhatsApp(Transaction $transaction): void
+    {
+        $phone = $transaction->customer_phone;
+
+        if (empty($phone)) {
+            return;
+        }
+
+        $message = "Halo {$transaction->customer_name}, pembayaran berhasil. E-ticket Anda sudah dikirim ke email {$transaction->customer_email}. Terima kasih telah berpartisipasi.";
+
+        $this->whatsAppService->send($phone, $message);
     }
 
     public function payment($order_id)
@@ -169,6 +220,8 @@ class CheckoutController extends Controller
 
                                 Mail::to($transaction->customer_email)
                                     ->send(new \App\Mail\EventTicketMail($transaction));
+
+                                $this->sendSuccessWhatsApp($transaction);
 
                             } catch (\Exception $e) {
 

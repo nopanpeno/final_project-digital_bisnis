@@ -45,6 +45,42 @@
     </div>
 </div>
 
+<!-- Growth Overview -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <p class="text-sm font-bold uppercase tracking-wide text-slate-400">Pertumbuhan Pengguna</p>
+                <h3 class="text-2xl font-black text-slate-800">{{ $totalUsers }} Pengguna</h3>
+                <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mt-2">Total Pengguna</p>
+            </div>
+            <div class="px-3 py-2 rounded-2xl bg-indigo-50 text-indigo-600 font-bold">{{ $userGrowthLabel }}</div>
+        </div>
+        <div class="h-40 rounded-2xl bg-slate-50 p-4 flex items-end gap-3">
+            @foreach ($userGrowthSeries as $index => $value)
+                <div class="flex-1 rounded-t-xl bg-indigo-500" style="height: {{ max(12, $value * 20) }}px" title="{{ $monthLabels[$index] }}: {{ $value }}"></div>
+            @endforeach
+        </div>
+        <p class="mt-4 text-sm text-slate-500">{{ $newUsersThisMonth }} pengguna baru dalam 30 hari terakhir.</p>
+    </div>
+
+    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <p class="text-sm font-bold uppercase tracking-wide text-slate-400">Pertumbuhan Event</p>
+                <h3 class="text-2xl font-black text-slate-800">{{ $eventsCreatedThisMonth }} Event Bulan Ini</h3>
+            </div>
+            <div class="px-3 py-2 rounded-2xl bg-emerald-50 text-emerald-600 font-bold">{{ $eventGrowthLabel }}</div>
+        </div>
+        <div class="h-40 rounded-2xl bg-slate-50 p-4 flex items-end gap-3">
+            @foreach ($eventGrowthSeries as $index => $value)
+                <div class="flex-1 rounded-t-xl bg-emerald-500" style="height: {{ max(12, $value * 20) }}px" title="{{ $monthLabels[$index] }}: {{ $value }}"></div>
+            @endforeach
+        </div>
+        <p class="mt-4 text-sm text-slate-500">Ringkasan perkembangan penyelenggaraan acara secara berkala.</p>
+    </div>
+</div>
+
 <!-- Latest Sales Table -->
 <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
     <div class="p-8 border-b flex justify-between items-center">

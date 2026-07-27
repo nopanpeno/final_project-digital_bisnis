@@ -56,7 +56,7 @@ public function hasSuccessfulTransactionFor($email)
 {
     return $this->transactions()
         ->where('customer_email', $email)
-        ->where('status', 'success')
+        ->whereIn('status', ['success', 'settlement', 'capture'])
         ->exists();
 }
 
