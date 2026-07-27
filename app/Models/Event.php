@@ -41,4 +41,28 @@ class Event extends Model
     {
         return $this->hasMany(Transaction::class);
     }
+
+    public function reviews()
+{
+    return $this->hasMany(Review::class);
+}
+
+public function averageRating()
+{
+    return $this->reviews()->avg('rating');
+}
+
+public function hasSuccessfulTransactionFor($email)
+{
+    return $this->transactions()
+        ->where('customer_email', $email)
+        ->where('status', 'success')
+        ->exists();
+}
+
+public function isReviewPeriodOpen()
+{
+    return $this->date <= now()->subDay();
+}
+
 }

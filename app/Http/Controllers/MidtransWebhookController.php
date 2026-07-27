@@ -53,7 +53,7 @@ class MidtransWebhookController extends Controller
                 break;
 
             case 'settlement':
-                $transaction->status = 'settlement';
+                $transaction->status = 'success';
                 $this->processSuccess($transaction);
                 break;
 

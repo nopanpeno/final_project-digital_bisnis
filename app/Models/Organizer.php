@@ -36,4 +36,19 @@ class Organizer extends Model
             ->where('status', 'success')
             ->count();
     }
+
+    public function reviews()
+{
+    return Review::whereIn('event_id', $this->events()->pluck('id'));
+}
+
+public function averageRating()
+{
+    return $this->reviews()->avg('rating');
+}
+
+public function reviewCount()
+{
+    return $this->reviews()->count();
+}
 }

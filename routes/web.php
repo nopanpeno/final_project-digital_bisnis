@@ -8,6 +8,9 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\OrganizerRegisterController;
+use App\Http\Controllers\Auth\SocialiteController;
+use App\Http\Controllers\OrganizerProfileController;
+use App\Http\Controllers\ReviewController;
 
 // Admin Controllers
 use App\Http\Controllers\Admin\AuthController;
@@ -50,6 +53,7 @@ Route::get('/my-ticket', [EventController::class, 'ticket'])
     ->name('ticket');
 
 Route::post('/midtrans/callback', [\App\Http\Controllers\MidtransWebhookController::class, 'handle'])->name('midtrans.callback');
+
 /*
 |--------------------------------------------------------------------------
 | Authentication Redirect
@@ -59,6 +63,17 @@ Route::post('/midtrans/callback', [\App\Http\Controllers\MidtransWebhookControll
 Route::get('/login', function () {
     return redirect()->route('admin.login');
 })->name('login');
+
+/*
+|--------------------------------------------------------------------------
+| Reviews (Fitur 2 - Rating & Review)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth')->group(function () {
+    Route::post('/events/{event}/reviews', [ReviewController::class, 'store'])
+        ->name('reviews.store');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -111,6 +126,10 @@ Route::prefix('organizer')
 
         Route::post('/register', [OrganizerRegisterController::class, 'store'])
             ->name('register.store');
+
+        // Fitur 2 - Halaman profil publik organizer (rating & review)
+        Route::get('/profile/{slug}', [OrganizerProfileController::class, 'show'])
+            ->name('profile');
     });
 
 /*
@@ -160,3 +179,19 @@ Route::prefix('superadmin')
 
 Route::resource('partners', PartnerController::class)
     ->except(['show']);
+
+
+/*
+|--------------------------------------------------------------------------
+| Google SSO (Socialite)
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/auth/google', [SocialiteController::class, 'redirect'])
+    ->name('auth.google');
+
+Route::get('/auth/google/checkout/{event}', [SocialiteController::class, 'redirectFromCheckout'])
+    ->name('auth.google.checkout');
+
+Route::get('/auth/google/callback', [SocialiteController::class, 'callback'])
+    ->name('auth.google.callback');

@@ -23,8 +23,9 @@ class CheckoutController extends Controller
     public function create(Event $event)
     {
         $categories = Category::all();
+        $googleUser = auth()->check() ? auth()->user() : null;
 
-        return view('checkout.create', compact('event', 'categories'));
+        return view('checkout.create', compact('event', 'categories', 'googleUser'));
     }
 
     public function store(Request $request, Event $event)

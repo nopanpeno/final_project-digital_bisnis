@@ -9,17 +9,25 @@
                 ? asset('storage/' . $event->poster_path)
                 : 'https://placehold.co/200x600' }}" alt="{{ $event->title }}" class="w-full rounded-[2.5rem] shadow-2xl border-8 border-white object-cover aspect-[3/4]">
 
-            <div class="mt-8 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm">
+            @if($event->organizer)
+            <a href="{{ route('organizer.profile', $event->organizer->slug) }}" class="block mt-8 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                 <h4 class="font-bold mb-4">Penyelenggara</h4>
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
-                        AB</div>
+                        {{ strtoupper(substr($event->organizer->name, 0, 2)) }}
+                    </div>
                     <div>
-                        <p class="font-bold text-slate-800">ABP Productions</p>
-                        <p class="text-xs text-slate-500">Verified Organizer</p>
+                        <p class="font-bold text-slate-800">{{ $event->organizer->name }}</p>
+                        <p class="text-xs text-slate-500 flex items-center gap-1">
+                            @if($event->organizer->averageRating())
+                                <span class="text-yellow-500">★ {{ number_format($event->organizer->averageRating(), 1) }}</span>
+                            @endif
+                            Lihat Profil
+                        </p>
                     </div>
                 </div>
-            </div>
+            </a>
+            @endif
         </div>
     </div>
 
@@ -98,10 +106,73 @@
                 <li class="flex items-start gap-2 text-rose-500">
                     <svg class="w-5 h-5 text-rose-500 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
+                        </svg>
                     Tiket yang sudah dibeli tidak dapat direfund.
                 </li>
             </ul>
+        </div>
+
+        <!-- Rating & Review -->
+        <div class="space-y-6">
+            <h3 class="text-2xl font-bold">Ulasan & Testimoni</h3>
+
+            @auth
+                @if(session('success'))
+                    <div class="bg-green-100 text-green-700 p-4 rounded-2xl">{{ session('success') }}</div>
+                @endif
+                @if(session('error'))
+                    <div class="bg-red-100 text-red-700 p-4 rounded-2xl">{{ session('error') }}</div>
+                @endif
+
+                @if($event->hasSuccessfulTransactionFor(auth()->user()->email) && $event->isReviewPeriodOpen())
+                    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+                        <h4 class="font-bold mb-3">Beri Ulasan untuk Event Ini</h4>
+                        <form action="{{ route('reviews.store', $event->id) }}" method="POST" class="space-y-3">
+                            @csrf
+                            <select name="rating" class="border rounded-xl p-3 w-full" required>
+                                <option value="">Pilih rating</option>
+                                @for($i = 5; $i >= 1; $i--)
+                                    <option value="{{ $i }}">{{ $i }} ★</option>
+                                @endfor
+                            </select>
+                            <textarea name="comment" class="border rounded-xl p-3 w-full" rows="3" placeholder="Ceritakan pengalaman Anda... (opsional)"></textarea>
+                            <button type="submit" class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">
+                                Kirim Ulasan
+                            </button>
+                        </form>
+                    </div>
+                @elseif(!$event->hasSuccessfulTransactionFor(auth()->user()->email))
+                    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 text-center text-slate-500">
+                        Anda harus membeli tiket event ini sebelum bisa memberi ulasan.
+                    </div>
+                @else
+                    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 text-center text-slate-500">
+                        Ulasan baru bisa diberikan setelah acara selesai (minimal H+1).
+                    </div>
+                @endif
+            @else
+                <div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 text-center text-slate-500">
+                    <a href="{{ route('auth.google') }}" class="text-indigo-600 font-bold underline">Login</a> untuk memberi ulasan
+                </div>
+            @endauth
+
+            <div class="space-y-4">
+                @forelse($event->reviews()->with('user')->latest()->get() as $review)
+                    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
+                        <div class="flex justify-between items-start">
+                            <p class="font-bold text-slate-800">{{ $review->user->name }}</p>
+                            <span class="text-yellow-500">
+                                {{ str_repeat('★', $review->rating) }}{{ str_repeat('☆', 5 - $review->rating) }}
+                            </span>
+                        </div>
+                        @if($review->comment)
+                            <p class="mt-2 text-slate-600">{{ $review->comment }}</p>
+                        @endif
+                    </div>
+                @empty
+                    <p class="text-slate-500">Belum ada ulasan untuk event ini.</p>
+                @endforelse
+            </div>
         </div>
     </div>
 </main>
