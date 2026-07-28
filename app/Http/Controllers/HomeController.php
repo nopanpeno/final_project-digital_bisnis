@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 use App\Models\Event;
 use App\Models\Category;
-use App\Models\partners;
+use App\Models\Partners;
 use Illuminate\Http\Request;
 
 
@@ -15,7 +15,7 @@ class HomeController extends Controller
         $categories = Category::all();
 
         // 2. Ambil semua partner untuk homepage publik
-        $partners = partners::latest()->get();
+        $partners = Partners::latest()->get();
 
         // 3. Buat kueri dasar untuk mengambil event: 
         // - Gunakan Eager loading `category`
