@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\EventTicketMail;
+use App\Jobs\SendEventNotification;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class MidtransWebhookController extends Controller
 {
@@ -18,10 +18,14 @@ class MidtransWebhookController extends Controller
         $transactionStatus = $payload['transaction_status'] ?? null;
         $fraudStatus = $payload['fraud_status'] ?? null;
 
-        if (!$orderId) {
+        $signatureKey = $payload['signature_key'] ?? null;
+
+        if (!$orderId || !$signatureKey || !$this->isValidMidtransSignature($payload)) {
+            Log::warning('Invalid Midtrans webhook signature', ['payload' => $payload]);
+
             return response()->json([
-                'message' => 'Invalid payload'
-            ], 400);
+                'message' => 'Invalid signature'
+            ], 403);
         }
 
         $transaction = Transaction::with('event')
@@ -77,33 +81,34 @@ class MidtransWebhookController extends Controller
 
     private function processSuccess(Transaction $transaction)
     {
-        $event = $transaction->event;
+        DB::transaction(function () use ($transaction) {
+            $event = $transaction->event()->lockForUpdate()->first();
 
-        if ($event && $event->stock > 0) {
-
-            $event->stock -= 1;
-            $event->save();
-
-            try {
-
-                Mail::to($transaction->customer_email)
-                    ->send(new EventTicketMail($transaction));
-
-            } catch (\Exception $e) {
-
-                Log::error('Gagal mengirim email E-Ticket', [
-                    'order_id' => $transaction->order_id,
-                    'error' => $e->getMessage(),
+            if ($event && $event->stock > 0) {
+                $event->decrement('stock');
+                dispatch(new SendEventNotification($transaction, 'success'));
+            } else {
+                Log::warning('Stock habis setelah pembayaran berhasil', [
+                    'order_id' => $transaction->order_id
                 ]);
-
             }
+        });
+    }
 
-        } else {
+    private function isValidMidtransSignature(array $payload): bool
+    {
+        $orderId = $payload['order_id'] ?? '';
+        $statusCode = $payload['status_code'] ?? '';
+        $grossAmount = $payload['gross_amount'] ?? '';
+        $signatureKey = $payload['signature_key'] ?? '';
+        $serverKey = env('MIDTRANS_SERVER_KEY', '');
 
-            Log::warning('Stock habis setelah pembayaran berhasil', [
-                'order_id' => $transaction->order_id
-            ]);
-
+        if (empty($orderId) || empty($statusCode) || empty($grossAmount) || empty($signatureKey) || empty($serverKey)) {
+            return false;
         }
+
+        $expectedSignature = hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey);
+
+        return hash_equals($expectedSignature, $signatureKey);
     }
 }
