@@ -5,17 +5,14 @@ RUN apt-get update && apt-get install -y \
     git curl zip unzip libzip-dev libpng-dev libonig-dev libxml2-dev \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Fix Apache MPM conflict - paksa hanya prefork yang aktif
-RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
-    /etc/apache2/mods-enabled/mpm_event.conf \
-    /etc/apache2/mods-enabled/mpm_worker.load \
-    /etc/apache2/mods-enabled/mpm_worker.conf \
-    && a2enmod mpm_prefork
+# Fix Apache MPM conflict - cek & paksa hanya prefork
+RUN apache2ctl -M 2>&1 | grep mpm || true \
+    && a2dismod mpm_event mpm_worker mpm_prefork 2>/dev/null || true \
+    && a2enmod mpm_prefork \
+    && apache2ctl -M
 
 # Enable Apache mod_rewrite (buat Laravel routing)
 RUN a2enmod rewrite
-
-# ... sisanya tetap sama
 
 # Set Apache document root ke /public (folder Laravel)
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
@@ -42,6 +39,4 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-EXPOSE 80
-
-CMD ["apache2-foreground"]
+EXPOSE
