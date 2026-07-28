@@ -5,8 +5,14 @@ RUN apt-get update && apt-get install -y \
     git curl zip unzip libzip-dev libpng-dev libonig-dev libxml2-dev \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip
 
+# Fix Apache MPM conflict
+RUN a2dismod mpm_event || true \
+    && a2enmod mpm_prefork
+
 # Enable Apache mod_rewrite (buat Laravel routing)
 RUN a2enmod rewrite
+
+# ... sisanya tetap sama
 
 # Set Apache document root ke /public (folder Laravel)
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
