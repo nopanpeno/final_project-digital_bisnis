@@ -177,7 +177,7 @@ Route::prefix('superadmin')
 |--------------------------------------------------------------------------
 */
 
-Route::resource('partners', PartnerController::class)
+Route::resource('Partners', PartnerController::class)
     ->except(['show']);
 
 
