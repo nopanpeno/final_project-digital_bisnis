@@ -4,11 +4,6 @@ RUN apt-get update && apt-get install -y \
     git curl zip unzip libzip-dev libpng-dev libonig-dev libxml2-dev \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip
 
-RUN apache2ctl -M 2>&1 | grep mpm || true \
-    && a2dismod mpm_event mpm_worker mpm_prefork 2>/dev/null || true \
-    && a2enmod mpm_prefork \
-    && apache2ctl -M
-
 RUN a2enmod rewrite
 
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
@@ -29,6 +24,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+
+# Fix Apache MPM conflict - HARUS paling akhir, setelah semua install
+RUN a2dismod mpm_event mpm_worker 2>/dev/null || true \
+    && a2enmod mpm_prefork \
+    && apache2ctl -M
 
 EXPOSE 80
 
