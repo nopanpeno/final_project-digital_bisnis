@@ -6,6 +6,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\EnsureIsOrganizer;
 use App\Http\Middleware\EnsureIsSuperadmin;
 use Illuminate\Http\Request;
+use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,6 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
             Request::HEADER_X_FORWARDED_PORT |
             Request::HEADER_X_FORWARDED_PROTO
         );
+    })
+    ->withSchedule(function (Schedule $schedule) {
+        $schedule->command('cart:remind-abandoned')->everyFiveMinutes();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
