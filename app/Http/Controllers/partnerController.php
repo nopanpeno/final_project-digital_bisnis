@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Partners;
 use Illuminate\Http\Request;
 
-class partnerController extends Controller
+class PartnerController extends Controller
 {
     public function index(Request $request)
     {
