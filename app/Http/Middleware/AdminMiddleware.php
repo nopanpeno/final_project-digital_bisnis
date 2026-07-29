@@ -14,7 +14,10 @@ class AdminMiddleware
      * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
-    {
-        return $next($request);
+{
+    if (!auth()->check() || auth()->user()->role !== 'admin') {
+        abort(403, 'Halaman ini khusus untuk admin.');
     }
+    return $next($request);
+}
 }

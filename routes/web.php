@@ -150,4 +150,6 @@ Route::prefix('superadmin')->name('superadmin.')->middleware(['auth', 'superadmi
 | PARTNER ROUTES
 |--------------------------------------------------------------------------
 */
-Route::resource('partners', PartnerController::class)->except(['show']);
+Route::middleware(['auth', 'admin'])->group(function () {
+    Route::resource('partners', PartnerController::class)->except(['show']);
+});
