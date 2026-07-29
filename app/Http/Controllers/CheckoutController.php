@@ -107,6 +107,14 @@ class CheckoutController extends Controller
 
         try {
 
+            // Inisialisasi konfigurasi Midtrans SEBELUM generate Snap token.
+            // Tanpa ini, \Midtrans\Config::$serverKey akan tetap null
+            // meskipun env var MIDTRANS_SERVER_KEY sudah di-set di server.
+            \Midtrans\Config::$serverKey = config('midtrans.server_key');
+            \Midtrans\Config::$isProduction = config('midtrans.is_production');
+            \Midtrans\Config::$isSanitized = true;
+            \Midtrans\Config::$is3ds = true;
+
             $snapToken = \Midtrans\Snap::getSnapToken($params);
 
             $transaction->update([
