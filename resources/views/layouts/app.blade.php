@@ -31,10 +31,13 @@
                 AH</div>
             <span class="text-xl font-bold tracking-tight">AmikomEventHub</span>
         </div>
-        <div class="hidden md:flex gap-8 font-medium">
-            <a href="#" class="text-indigo-600">Jelajahi</a>
+        <div class="hidden md:flex gap-8 font-medium items-center">
+            <a href="{{ route('home') }}" class="text-indigo-600">Jelajahi</a>
             <a href="#" class="hover:text-indigo-600 transition">Kategori</a>
             <a href="#" class="hover:text-indigo-600 transition">Tentang Kami</a>
+            @auth
+                <a href="{{ route('ticket') }}" class="hover:text-indigo-600 transition">Tiket Saya</a>
+            @endauth
         </div>
         <!-- <div class="flex gap-3">
             <button class="px-5 py-2.5 rounded-xl font-semibold hover:bg-slate-200 transition">Login</button>

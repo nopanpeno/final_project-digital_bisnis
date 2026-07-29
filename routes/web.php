@@ -13,6 +13,7 @@ use App\Http\Controllers\PartnerController;
 use App\Http\Controllers\OrganizerRegisterController;
 use App\Http\Controllers\OrganizerProfileController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\MyTicketController;
 use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\MidtransWebhookController;
 
@@ -40,7 +41,9 @@ use App\Http\Controllers\SuperadminOrganizerController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/events/{event}', [EventController::class, 'show'])->name('events.show');
-Route::get('/my-ticket', [EventController::class, 'ticket'])->name('ticket');
+
+// Riwayat transaksi/tiket milik user yang login (dulu halaman mock, sekarang data asli)
+Route::middleware('auth')->get('/my-ticket', [MyTicketController::class, 'index'])->name('ticket');
 
 // Checkout Flow
 Route::get('/checkout', [EventController::class, 'checkout'])->name('checkout.index');

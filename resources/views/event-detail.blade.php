@@ -113,7 +113,7 @@
         </div>
 
         <!-- Rating & Review -->
-        <div class="space-y-6">
+        <div class="space-y-6" id="ulasan">
             <h3 class="text-2xl font-bold">Ulasan & Testimoni</h3>
 
             @auth
