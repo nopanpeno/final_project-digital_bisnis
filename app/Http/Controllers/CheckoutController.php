@@ -116,11 +116,12 @@ class CheckoutController extends Controller
             \Midtrans\Config::$is3ds = true;
 
             $snapToken = \Midtrans\Snap::getSnapToken($params);
-
+            
             $transaction->update([
                 'snap_token' => $snapToken,
             ]);
-
+// Di method store, setelah generate Snap token:
+dispatch(new SendEventNotification($transaction, 'pending'));
             // GANTI dengan ini (panggil langsung):
 $job = new \App\Jobs\SendEventNotification($transaction, 'pending');
 $job->handle(app(\App\Services\WhatsAppService::class));
