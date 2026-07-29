@@ -5,10 +5,16 @@
 <div class="max-w-7xl mx-auto px-6 py-12 mt-8">
     <div class="flex items-center justify-between mb-8">
         <h1 class="text-3xl font-bold">Dashboard Organizer: {{ $organizer->name }}</h1>
-        <a href="{{ route('organizer.analytics') }}"
-           class="text-sm font-medium text-indigo-600 hover:text-indigo-700">
-            Lihat Analitik Lengkap →
-        </a>
+        <div class="flex items-center gap-6">
+            <a href="{{ route('organizer.events.index') }}"
+               class="text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                Kelola Event Saya →
+            </a>
+            <a href="{{ route('organizer.analytics') }}"
+               class="text-sm font-medium text-indigo-600 hover:text-indigo-700">
+                Lihat Analitik Lengkap →
+            </a>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">

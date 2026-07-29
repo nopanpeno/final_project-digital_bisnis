@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\TransactionController;
 // 3. MULTI-TENANT CONTROLLERS
 // ==========================================
 use App\Http\Controllers\OrganizerDashboardController;
+use App\Http\Controllers\OrganizerEventController;
 use App\Http\Controllers\SuperadminOrganizerController;
 
 
@@ -41,8 +42,6 @@ use App\Http\Controllers\SuperadminOrganizerController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/events/{event}', [EventController::class, 'show'])->name('events.show');
-
-// Riwayat transaksi/tiket milik user yang login (dulu halaman mock, sekarang data asli)
 Route::middleware('auth')->get('/my-ticket', [MyTicketController::class, 'index'])->name('ticket');
 
 // Checkout Flow
@@ -130,6 +129,9 @@ Route::prefix('organizer')->name('organizer.')->group(function () {
 Route::prefix('organizer')->name('organizer.')->middleware(['auth', 'organizer'])->group(function () {
     Route::get('/dashboard', [OrganizerDashboardController::class, 'index'])->name('dashboard');
     Route::get('/analytics', [OrganizerDashboardController::class, 'analytics'])->name('analytics');
+
+    // Kelola event milik organizer sendiri (CRUD, otomatis ke-scope oleh OrganizerScope)
+    Route::resource('events', OrganizerEventController::class)->except(['show']);
 });
 
 
