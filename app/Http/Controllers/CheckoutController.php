@@ -121,7 +121,9 @@ class CheckoutController extends Controller
                 'snap_token' => $snapToken,
             ]);
 
-            dispatch(new SendEventNotification($transaction, 'pending'));
+            // GANTI dengan ini (panggil langsung):
+$job = new \App\Jobs\SendEventNotification($transaction, 'pending');
+$job->handle(app(\App\Services\WhatsAppService::class));
 
             return redirect()->route(
                 'checkout.payment',

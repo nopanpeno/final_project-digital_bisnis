@@ -87,7 +87,9 @@ class MidtransWebhookController extends Controller
 
             if ($event && $event->stock > 0) {
                 $event->decrement('stock');
-                dispatch(new SendEventNotification($transaction, 'success'));
+               // GANTI dengan ini (panggil langsung):
+$job = new \App\Jobs\SendEventNotification($transaction, 'success');
+$job->handle(app(\App\Services\WhatsAppService::class));
             } else {
                 Log::warning('Stock habis setelah pembayaran berhasil', [
                     'order_id' => $transaction->order_id,

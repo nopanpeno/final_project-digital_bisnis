@@ -5,22 +5,12 @@ namespace App\Jobs;
 use App\Mail\EventTicketMail;
 use App\Models\Transaction;
 use App\Services\WhatsAppService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
-class SendEventNotification implements ShouldQueue
+class SendEventNotification
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public int $tries = 3;
-    public int $timeout = 60;
-    public array $backoff = [10, 30, 60];
-
+    // Constructor promotion (tetap sama seperti aslimu)
     public function __construct(
         public Transaction $transaction,
         public string $type
@@ -30,8 +20,9 @@ class SendEventNotification implements ShouldQueue
     {
         try {
             if ($this->type === 'success') {
+                // UBAH: dari ->queue() menjadi ->send() agar email langsung terkirim
                 Mail::to($this->transaction->customer_email)
-                    ->queue(new EventTicketMail($this->transaction));
+                    ->send(new EventTicketMail($this->transaction));
 
                 $this->sendWA($wa, 'success');
             } else {
@@ -42,8 +33,6 @@ class SendEventNotification implements ShouldQueue
                 'order_id' => $this->transaction->order_id,
                 'type' => $this->type,
             ]);
-
-            $this->fail($e);
         }
     }
 
