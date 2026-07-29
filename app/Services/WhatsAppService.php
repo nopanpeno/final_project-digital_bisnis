@@ -17,11 +17,10 @@ class WhatsAppService
         }
 
         try {
-            $response = Http::timeout(5)
-                ->withHeaders([
-                    'Authorization' => $token,
-                    'Content-Type' => 'application/x-www-form-urlencoded',
-                ])->asForm()->post($baseUrl, [
+            $response = Http::withHeaders([
+                'Authorization' => $token,
+                'Content-Type' => 'application/x-www-form-urlencoded',
+            ])->asForm()->post($baseUrl, [
                 'target' => $to,
                 'message' => $message,
                 'countryCode' => '62',

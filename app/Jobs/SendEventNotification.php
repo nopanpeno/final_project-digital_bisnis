@@ -5,21 +5,12 @@ namespace App\Jobs;
 use App\Mail\EventTicketMail;
 use App\Models\Transaction;
 use App\Services\WhatsAppService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
-class SendEventNotification implements ShouldQueue
+class SendEventNotification
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public int $tries = 3;
-    public int $timeout = 60;
-    public array $backoff = [10, 30, 60];
+    // Tidak ada implements ShouldQueue di sini!
 
     public function __construct(
         public Transaction $transaction,
@@ -29,21 +20,32 @@ class SendEventNotification implements ShouldQueue
     public function handle(WhatsAppService $wa): void
     {
         try {
-            if ($this->type === 'success') {
-                Mail::to($this->transaction->customer_email)
-                    ->send(new EventTicketMail($this->transaction));
-
-                $this->sendWA($wa, 'success');
-            } else {
-                $this->sendWA($wa, 'pending');
-            }
-        } catch (\Throwable $e) {
-            Log::error('SendEventNotification failed: ' . $e->getMessage(), [
+            Log::info('Processing notification synchronously', [
                 'order_id' => $this->transaction->order_id,
                 'type' => $this->type,
             ]);
 
-            $this->fail($e);
+            if ($this->type === 'success') {
+                // 1. Kirim Email E-ticket langsung
+                Mail::to($this->transaction->customer_email)
+                    ->send(new EventTicketMail($this->transaction));
+
+                // 2. Kirim WA Success langsung
+                $this->sendWA($wa, 'success');
+            } else {
+                // Kirim WA Pending langsung
+                $this->sendWA($wa, 'pending');
+            }
+
+            Log::info('Notification sent successfully', [
+                'order_id' => $this->transaction->order_id,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('SendEventNotification failed: ' . $e->getMessage(), [
+                'order_id' => $this->transaction->order_id,
+                'type' => $this->type,
+                'error' => $e->getTraceAsString(),
+            ]);
         }
     }
 
@@ -51,6 +53,9 @@ class SendEventNotification implements ShouldQueue
     {
         $phone = $this->transaction->customer_phone;
         if (empty($phone)) {
+            Log::warning('Phone number empty, skipping WA', [
+                'order_id' => $this->transaction->order_id
+            ]);
             return;
         }
 
@@ -58,8 +63,8 @@ class SendEventNotification implements ShouldQueue
         $email = $this->transaction->customer_email;
 
         $message = $type === 'success'
-            ? "Halo {$name}, pembayaran berhasil. E-ticket sudah dikirim ke {$email}."
-            : "Halo {$name}, selesaikan pembayaran di: " . route('checkout.payment', $this->transaction->order_id, true);
+            ? "Halo {$name}, pembayaran berhasil. E-ticket Anda sudah dikirim ke email {$email}. Terima kasih telah berpartisipasi."
+            : "Halo {$name}, transaksi Anda sedang menunggu pembayaran. Silakan selesaikan pembayaran Anda.";
 
         $wa->send($phone, $message);
     }

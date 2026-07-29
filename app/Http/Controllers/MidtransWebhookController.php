@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\SendEventNotification;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,9 +15,6 @@ class MidtransWebhookController extends Controller
             'order_id' => $request->order_id,
             'status' => $request->transaction_status
         ]);
-
-        // Validasi signature key (pertahankan kode validasi yang sudah ada)
-        // ...
 
         $transaction = Transaction::where('order_id', $request->order_id)->first();
         
@@ -42,7 +38,7 @@ class MidtransWebhookController extends Controller
                 break;
         }
 
-        // RESPON CEPAT KE MIDTRANS (200 OK)
+        // RESPON CEPAT KE MIDTRANS (200 OK) agar tidak RTO
         return response()->json(['status' => 'ok'], 200);
     }
 
@@ -57,8 +53,10 @@ class MidtransWebhookController extends Controller
 
             $transaction->update(['status' => 'success']);
 
-            // Dispatch ke queue (akan diproses di background oleh worker)
-            dispatch(new SendEventNotification($transaction, 'success'));
+            // 🔥 PANGGIL LANGSUNG (SINKRONUS), BUKAN DISPATCH
+            // Ini menjamin notif masuk detik itu juga tanpa antrian
+            $job = new \App\Jobs\SendEventNotification($transaction, 'success');
+            $job->handle(app(\App\Services\WhatsAppService::class));
         });
     }
 }

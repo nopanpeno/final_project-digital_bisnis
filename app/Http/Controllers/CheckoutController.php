@@ -1,18 +1,28 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use App\Jobs\SendEventNotification;
 use App\Models\Category;
 use App\Models\Event;
 use App\Models\Transaction;
+use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class CheckoutController extends Controller
 {
+    protected WhatsAppService $whatsAppService;
+
+    public function __construct()
+    {
+        \Midtrans\Config::$serverKey    = env('MIDTRANS_SERVER_KEY');
+        \Midtrans\Config::$isProduction = false; // Ubah ke true jika sudah production
+        \Midtrans\Config::$isSanitized  = true;
+        \Midtrans\Config::$is3ds        = true;
+        $this->whatsAppService          = new WhatsAppService();
+    }
+
     public function create(Event $event)
     {
         $categories = Category::all();
@@ -37,21 +47,13 @@ class CheckoutController extends Controller
 
         $customerEmail = strtolower($request->customer_email);
 
-        if (!filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
-            return back()->with('error', 'Alamat email tidak valid.');
-        }
-
         if ($event->stock <= 0) {
-            return back()->with(
-                'error',
-                'Mohon maaf, tiket untuk acara ini sudah habis.'
-            );
+            return back()->with('error', 'Mohon maaf, tiket untuk acara ini sudah habis.');
         }
 
-        $orderId = 'TRX-' . time() . '-' . strtoupper(Str::random(5));
-
+        $orderId     = 'TRX-' . time() . '-' . strtoupper(Str::random(5));
         $isFreeEvent = (int) $event->price === 0;
-        $totalPrice = $isFreeEvent ? 0 : $event->price + 5000;
+        $totalPrice  = $isFreeEvent ? 0 : $event->price + 5000;
 
         $transaction = Transaction::create([
             'event_id'       => $event->id,
@@ -65,108 +67,112 @@ class CheckoutController extends Controller
 
         if ($isFreeEvent) {
             $transaction->update(['status' => 'success']);
-
             if ($event->stock > 0) {
                 $event->decrement('stock');
             }
 
             try {
-                Mail::to($transaction->customer_email)
-                    ->queue(new \App\Mail\EventTicketMail($transaction));
-
-                dispatch(new SendEventNotification($transaction, 'success'));
+                Mail::to($transaction->customer_email)->send(new \App\Mail\EventTicketMail($transaction));
+                $this->sendSuccessWhatsApp($transaction);
             } catch (\Exception $e) {
-                Log::error('Gagal mengantri notifikasi e-ticket gratis: ' . $e->getMessage());
+                Log::error('Gagal mengirim e-ticket gratis: ' . $e->getMessage());
             }
 
             return redirect()->route('checkout.success', ['order_id' => $orderId]);
         }
 
-        $successUrl = route('checkout.success', [
-            'order_id' => $orderId
-        ], true);
+        $successUrl = route('checkout.success', ['order_id' => $orderId], true);
 
         $params = [
-            'transaction_details' => [
+            'transaction_details'   => [
                 'order_id'     => $orderId,
                 'gross_amount' => $totalPrice,
             ],
-            'customer_details' => [
+            'customer_details'      => [
                 'first_name' => $request->customer_name,
                 'email'      => $customerEmail,
                 'phone'      => $request->customer_phone,
             ],
-            'finish_redirect_url' => $successUrl,
+            'finish_redirect_url'   => $successUrl,
             'unfinish_redirect_url' => $successUrl,
-            'error_redirect_url' => $successUrl,
-            'notification_url' => env(
-                'MIDTRANS_NOTIFICATION_URL',
-                route('midtrans.callback', [], true)
-            ),
+            'error_redirect_url'    => $successUrl,
+            'notification_url'      => env('MIDTRANS_NOTIFICATION_URL', route('midtrans.callback', [], true)),
         ];
 
         try {
-
-            // Inisialisasi konfigurasi Midtrans SEBELUM generate Snap token.
-            // Tanpa ini, \Midtrans\Config::$serverKey akan tetap null
-            // meskipun env var MIDTRANS_SERVER_KEY sudah di-set di server.
-            \Midtrans\Config::$serverKey = config('midtrans.server_key');
-            \Midtrans\Config::$isProduction = config('midtrans.is_production');
-            \Midtrans\Config::$isSanitized = true;
-            \Midtrans\Config::$is3ds = true;
-
             $snapToken = \Midtrans\Snap::getSnapToken($params);
-            
-            $transaction->update([
-                'snap_token' => $snapToken,
-            ]);
-// Di method store, setelah generate Snap token:
-dispatch(new SendEventNotification($transaction, 'pending'));
-            // GANTI dengan ini (panggil langsung):
-$job = new \App\Jobs\SendEventNotification($transaction, 'pending');
-$job->handle(app(\App\Services\WhatsAppService::class));
+            $transaction->update(['snap_token' => $snapToken]);
 
-            return redirect()->route(
-                'checkout.payment',
-                $transaction->order_id
-            );
+            // 🔥 KIRIM NOTIF PENDING SECARA LANGSUNG (SINKRONUS)
+            $this->sendPendingWhatsApp($transaction, $request->customer_phone);
+
+            return redirect()->route('checkout.payment', $transaction->order_id);
 
         } catch (\Exception $e) {
-
             $transaction->delete();
-
-            return back()->with(
-                'error',
-                'Gagal memproses pembayaran: ' . $e->getMessage()
-            );
+            Log::error('Midtrans error: ' . $e->getMessage());
+            return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
         }
+    }
+
+    protected function sendPendingWhatsApp(Transaction $transaction, string $phone): void
+    {
+        if (empty($phone)) {
+            return;
+        }
+
+        $paymentUrl = route('checkout.payment', $transaction->order_id, true);
+        $message    = "Halo {$transaction->customer_name}, transaksi Anda sedang menunggu pembayaran. Silakan selesaikan pembayaran di: {$paymentUrl}";
+
+        $this->whatsAppService->send($phone, $message);
+    }
+
+    protected function sendSuccessWhatsApp(Transaction $transaction): void
+    {
+        $phone = $transaction->customer_phone;
+        if (empty($phone)) {
+            return;
+        }
+
+        $message = "Halo {$transaction->customer_name}, pembayaran berhasil. E-ticket Anda sudah dikirim ke email {$transaction->customer_email}. Terima kasih telah berpartisipasi.";
+
+        $this->whatsAppService->send($phone, $message);
     }
 
     public function payment($order_id)
     {
-        $categories = Category::all();
-
-        $transaction = Transaction::with('event')
-            ->where('order_id', $order_id)
-            ->firstOrFail();
-
-        return view(
-            'checkout.payment',
-            compact('transaction', 'categories')
-        );
+        $categories  = Category::all();
+        $transaction = Transaction::with('event')->where('order_id', $order_id)->firstOrFail();
+        return view('checkout.payment', compact('transaction', 'categories'));
     }
 
     public function success($order_id)
     {
-        $categories = Category::all();
+        $categories  = Category::all();
+        $transaction = Transaction::with('event')->where('order_id', $order_id)->firstOrFail();
 
-        $transaction = Transaction::with('event')
-            ->where('order_id', $order_id)
-            ->firstOrFail();
+        try {
+            $status     = \Midtrans\Transaction::status($order_id);
+            $trx_status = is_array($status) ? ($status['transaction_status'] ?? '') : ($status->transaction_status ?? '');
 
-        return view(
-            'checkout.success',
-            compact('transaction', 'categories')
-        );
+            if (in_array($trx_status, ['settlement', 'capture']) && $transaction->status === 'pending') {
+                $transaction->update(['status' => 'success']);
+
+                if ($transaction->event && $transaction->event->stock > 0) {
+                    $transaction->event->decrement('stock');
+                }
+
+                try {
+                    Mail::to($transaction->customer_email)->send(new \App\Mail\EventTicketMail($transaction));
+                    $this->sendSuccessWhatsApp($transaction);
+                } catch (\Exception $e) {
+                    Log::error('Gagal mengirim email E-Ticket di success page: ' . $e->getMessage());
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Midtrans Error di success page: ' . $e->getMessage());
+        }
+
+        return view('checkout.success', compact('transaction', 'categories'));
     }
 }
