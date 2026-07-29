@@ -37,13 +37,30 @@
             <a href="#" class="hover:text-indigo-600 transition">Tentang Kami</a>
             @auth
                 <a href="{{ route('ticket') }}" class="hover:text-indigo-600 transition">Tiket Saya</a>
+                @if(auth()->user()->isOrganizer())
+                    <a href="{{ route('organizer.dashboard') }}" class="hover:text-indigo-600 transition">Dashboard Organizer</a>
+                @endif
             @endauth
         </div>
-        <!-- <div class="flex gap-3">
-            <button class="px-5 py-2.5 rounded-xl font-semibold hover:bg-slate-200 transition">Login</button>
-            <button
-                class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition">Daftar</button>
-        </div> -->
+        <div class="flex items-center gap-3">
+            @auth
+                <span class="hidden lg:inline text-sm text-slate-500 font-medium">
+                    Hai, {{ auth()->user()->name }}
+                </span>
+                <form action="{{ route('admin.logout') }}" method="POST">
+                    @csrf
+                    <button type="submit"
+                        class="px-5 py-2.5 rounded-xl font-semibold text-rose-600 hover:bg-rose-50 transition">
+                        Keluar
+                    </button>
+                </form>
+            @else
+                <a href="{{ route('auth.google') }}"
+                   class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition">
+                    Login
+                </a>
+            @endauth
+        </div>
     </nav>
 
     @yield('content')
