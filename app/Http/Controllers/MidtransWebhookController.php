@@ -20,13 +20,12 @@ class MidtransWebhookController extends Controller
         
         if (!$transaction) {
             Log::error('Transaction tidak ditemukan', ['order_id' => $request->order_id]);
-            return response()->json(['status' => 'ok'], 200)
-                ->header('Content-Type', 'application/json');
+            return response()->json(['error' => 'Transaction not found'], 404);
         }
 
-        // Simpan data ke properti objek untuk diproses setelah respons
-        $this->orderId = $request->order_id;
-        $this->status = $request->transaction_status;
+        // Simpan data untuk diproses nanti
+        $orderId = $request->order_id;
+        $status = $request->transaction_status;
 
         // RESPON CEPAT KE MIDTRANS (dalam <1 detik)
         // Ini mencegah timeout
